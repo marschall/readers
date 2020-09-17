@@ -13,6 +13,10 @@ public final class BufferedUtf8InputStreamReader extends Reader {
 
   private final byte[] buffer;
 
+  public BufferedUtf8InputStreamReader(InputStream in) {
+    this(in, 8192);
+  }
+
   public BufferedUtf8InputStreamReader(InputStream in, int bufferSize) {
     Objects.requireNonNull(in);
     if (bufferSize <= 0) {
@@ -25,7 +29,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     this.buffer = new byte[bufferSize];
     this.closed = false;
   }
-  
+
   static int getByteLength(byte b) throws IOException {
     int value = Byte.toUnsignedInt(b);
     if (value < 0b1000_0000) {
