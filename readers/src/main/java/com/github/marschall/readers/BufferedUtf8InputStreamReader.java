@@ -13,6 +13,8 @@ public final class BufferedUtf8InputStreamReader extends Reader {
 
   private final byte[] buffer;
 
+  private int position;
+
   public BufferedUtf8InputStreamReader(InputStream in) {
     this(in, 8192);
   }
@@ -28,6 +30,13 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     this.in = in;
     this.buffer = new byte[bufferSize];
     this.closed = false;
+    this.position = 0;
+  }
+
+  @Override
+  public boolean ready() throws IOException {
+    int byteLength = getByteLength(this.buffer[this.position]);
+    return this.position + byteLength <= this.buffer.length;
   }
 
   static int getByteLength(byte b) throws IOException {
