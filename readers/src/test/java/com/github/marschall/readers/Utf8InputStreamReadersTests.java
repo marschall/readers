@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -20,7 +21,7 @@ class Utf8InputStreamReadersTests {
   @ParameterizedTest
   @MethodSource("readers")
   void read(Reader reader) throws IOException {
-    try {
+    try (reader) {
       if (!(reader instanceof Utf8InputStreamReader)) {
         // is ready not implemented for Utf8InputStreamReader
         assertTrue(reader.ready());
@@ -34,8 +35,43 @@ class Utf8InputStreamReadersTests {
       assertEquals(Character.lowSurrogate(0x10348), reader.read());
       assertFalse(reader.ready());
       assertEquals(-1, reader.read());
-    } finally {
-      reader.close();
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("readers")
+  void skip(Reader reader) throws IOException {
+    try (reader) {
+      if (!(reader instanceof Utf8InputStreamReader)) {
+        // is ready not implemented for Utf8InputStreamReader
+        assertTrue(reader.ready());
+      }
+      assertEquals(2L, reader.skip(2L));
+//      assertEquals(0x0024, reader.read());
+//      assertEquals(0x00A2, reader.read());
+      assertEquals(0x0939, reader.read());
+      assertEquals(3L, reader.skip(3L));
+//      assertEquals(0x20AC, reader.read());
+//      assertEquals(0xD55C, reader.read());
+//      assertEquals(Character.highSurrogate(0x10348), reader.read());
+      assertEquals(Character.lowSurrogate(0x10348), reader.read());
+      assertFalse(reader.ready());
+      assertEquals(-1, reader.read());
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("readers")
+  void transferTo(Reader reader) throws IOException {
+    try (reader) {
+      StringWriter stringWriter = new StringWriter();
+      reader.transferTo(stringWriter);
+      String expected = new String(
+              new char[] { 0x0024, 0x00A2, 0x0939, 0x20AC, 0xD55C, Character.highSurrogate(0x10348), Character.lowSurrogate(0x10348)});
+      assertEquals(expected, stringWriter.toString());
+
+      assertFalse(reader.ready());
+      assertEquals(-1, reader.read());
     }
   }
 

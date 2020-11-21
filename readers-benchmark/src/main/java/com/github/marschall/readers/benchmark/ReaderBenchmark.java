@@ -19,43 +19,68 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.infra.Blackhole;
 
 import com.github.marschall.readers.BufferedUtf8InputStreamReader;
+import com.github.marschall.readers.Utf8InputStreamReader;
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Benchmark)
 public class ReaderBenchmark {
-  
+
   private static final byte[] DATA = new byte[8192];
-  
+
   static {
     Arrays.fill(DATA, (byte) 'A');
   }
 
   private Reader inputStreamReader;
 
+  private Reader bufferedInputStreamReader;
+
   private Reader bufferedUtf8InputStreamReader;
+
+  private Reader utf8InputStreamReader;
 
   @Setup
   public void setup() {
-    this.inputStreamReader = new InputStreamReader(new BufferedInputStream(new ByteArrayInputStream(DATA)), StandardCharsets.UTF_8);
+    this.inputStreamReader = new InputStreamReader(new ByteArrayInputStream(DATA), StandardCharsets.UTF_8);
+    this.bufferedInputStreamReader = new InputStreamReader(new BufferedInputStream(new ByteArrayInputStream(DATA)), StandardCharsets.UTF_8);
+    this.utf8InputStreamReader = new Utf8InputStreamReader(new ByteArrayInputStream(DATA));
     this.bufferedUtf8InputStreamReader = new BufferedUtf8InputStreamReader(new ByteArrayInputStream(DATA));
   }
 
   @Benchmark
-  public void readSingleCharInputStreamReader(Blackhole blackhole) throws IOException {
-    int c = inputStreamReader.read();
+  public void readSingleCharBufferedInputStreamReader(Blackhole blackhole) throws IOException {
+    int c = this.bufferedInputStreamReader.read();
     while (c != -1) {
       blackhole.consume(c);
-      c = inputStreamReader.read();
+      c = this.bufferedInputStreamReader.read();
     }
   }
-  
+
   @Benchmark
-  public void readSingleCharBufferedUtf8InputStreamReader(Blackhole blackhole) throws IOException {
-    int c = bufferedUtf8InputStreamReader.read();
+  public void readSingleCharInputStreamReader(Blackhole blackhole) throws IOException {
+    int c = this.inputStreamReader.read();
     while (c != -1) {
       blackhole.consume(c);
-      c = bufferedUtf8InputStreamReader.read();
+      c = this.inputStreamReader.read();
+    }
+  }
+
+  @Benchmark
+  public void readSingleCharUtf8InputStreamReader(Blackhole blackhole) throws IOException {
+    int c = this.utf8InputStreamReader.read();
+    while (c != -1) {
+      blackhole.consume(c);
+      c = this.utf8InputStreamReader.read();
+    }
+  }
+
+//  @Benchmark
+  public void readSingleCharBufferedUtf8InputStreamReader(Blackhole blackhole) throws IOException {
+    int c = this.bufferedUtf8InputStreamReader.read();
+    while (c != -1) {
+      blackhole.consume(c);
+      c = this.bufferedUtf8InputStreamReader.read();
     }
   }
 

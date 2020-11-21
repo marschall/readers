@@ -3,6 +3,7 @@ package com.github.marschall.readers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.Writer;
 import java.util.Objects;
 
 public final class BufferedUtf8InputStreamReader extends Reader {
@@ -13,7 +14,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
 
   private final byte[] buffer;
 
-  private int position;
+  private final int position;
 
   public BufferedUtf8InputStreamReader(InputStream in) {
     this(in, 8192);
@@ -36,7 +37,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
   @Override
   public boolean ready() throws IOException {
     int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
-    return this.position + byteLength <= this.buffer.length;
+    return (this.position + byteLength) <= this.buffer.length;
   }
 
   @Override
@@ -45,6 +46,16 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     Objects.checkFromIndexSize(off, len, cbuf.length);
     // TODO Auto-generated method stub
     return 0;
+  }
+
+  @Override
+  public long transferTo(Writer out) throws IOException {
+    throw new IOException();
+  }
+
+  @Override
+  public long skip(long n) throws IOException {
+    throw new IOException();
   }
 
   private void closedCheck() throws IOException {
