@@ -35,24 +35,8 @@ public final class BufferedUtf8InputStreamReader extends Reader {
 
   @Override
   public boolean ready() throws IOException {
-    int byteLength = getByteLength(this.buffer[this.position]);
+    int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
     return this.position + byteLength <= this.buffer.length;
-  }
-
-  static int getByteLength(byte b) throws IOException {
-    int value = Byte.toUnsignedInt(b);
-    if (value < 0b1000_0000) {
-      return 1;
-    } else if (value >= 0b110_00000) {
-      if (value < 0b1110_0000) {
-        return 2;
-      } else if (value < 0b11110_000) {
-        return 3;
-      } else if (value < 0b111110_00) {
-        return 4;
-      }
-    }
-    throw new IOException("invalid utf-8 first byte");
   }
 
   @Override
