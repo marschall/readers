@@ -1,13 +1,28 @@
 package com.github.marschall.readers;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.util.Objects;
 
+
+/**
+ * A {@link Reader} that decodes UTF-8 from an {@link InputStream} with buffering.
+ *
+ * <p>Only {@link #transferTo(java.io.Writer)} currently performs intermediate allocation.
+ *
+ * <p>The implementation is optimized for bulk copying ASCII characters.
+ *
+ * <p>Not thread-safe.
+ *
+ * @see InputStreamReader
+ * @see BufferedInputStream
+ */
 public final class BufferedUtf8InputStreamReader extends Reader {
 
   static final VarHandle LONG_ACCESS = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.nativeOrder());
@@ -28,6 +43,12 @@ public final class BufferedUtf8InputStreamReader extends Reader {
 
   private char lowSurrogate;
 
+  /**
+   * Constructs a new {@link BufferedUtf8InputStreamReader} with a default buffer size of 8192.
+   *
+   * @param in the input stream from which to read the bytes, not {@code null}
+   * @throws NullPointerException if in is {@code null}
+   */
   public BufferedUtf8InputStreamReader(InputStream in) {
     this(in, 8192);
   }

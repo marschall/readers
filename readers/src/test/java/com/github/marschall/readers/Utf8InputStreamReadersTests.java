@@ -3,6 +3,7 @@ package com.github.marschall.readers;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.nio.CharBuffer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -31,6 +33,7 @@ class Utf8InputStreamReadersTests {
       assertEquals(Character.lowSurrogate(0x10348), reader.read());
       assertEquals(-1, reader.read());
     }
+    assertThrows(IOException.class, () -> reader.read());
   }
 
   @ParameterizedTest
@@ -48,6 +51,7 @@ class Utf8InputStreamReadersTests {
       assertEquals(Character.lowSurrogate(0x10348), reader.read());
       assertEquals(-1, reader.read());
     }
+    assertThrows(IOException.class, () -> reader.skip(1L));
   }
 
   @ParameterizedTest
@@ -74,6 +78,21 @@ class Utf8InputStreamReadersTests {
       assertArrayEquals(expected, actual);
       assertEquals(-1, reader.read(actual));
     }
+    assertThrows(IOException.class, () -> reader.read(new char[1]));
+  }
+
+  @ParameterizedTest
+  @MethodSource("readers")
+  void readCharBuffer(Reader reader) throws IOException {
+    try (reader) {
+      char[] expected = new char[] { 0x0024, 0x00A2, 0x0939, 0x20AC, 0xD55C, Character.highSurrogate(0x10348), Character.lowSurrogate(0x10348)};
+      char[] actual = new char[expected.length];
+      CharBuffer buffer = CharBuffer.wrap(actual);
+      assertEquals(expected.length, reader.read(buffer));
+      assertArrayEquals(expected, actual);
+      assertEquals(-1, reader.read(actual));
+    }
+    assertThrows(IOException.class, () -> reader.read(CharBuffer.allocate(1)));
   }
 
   @ParameterizedTest
@@ -100,6 +119,7 @@ class Utf8InputStreamReadersTests {
 
       assertEquals(-1, reader.read());
     }
+    assertThrows(IOException.class, () -> reader.transferTo(new StringWriter()));
   }
 
   private static List<Reader> readers() {

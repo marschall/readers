@@ -2,11 +2,21 @@ package com.github.marschall.readers;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.CharBuffer;
 import java.util.Objects;
 
+/**
+ * A {@link Reader} that decodes UTF-8 from an {@link InputStream} without buffering.
+ *
+ * <p>Avoids any intermediate allocation.
+ *
+ * <p>Not thread-safe.
+ *
+ * @see InputStreamReader
+ */
 public final class Utf8InputStreamReader extends Reader {
 
   private boolean closed;
@@ -17,6 +27,12 @@ public final class Utf8InputStreamReader extends Reader {
 
   private char lowSurrogate;
 
+  /**
+   * Constructs a new {@link Utf8InputStreamReader}
+   *
+   * @param in the input stream from which to read the bytes, not {@code null}
+   * @throws NullPointerException if in is {@code null}
+   */
   public Utf8InputStreamReader(InputStream in) {
     Objects.requireNonNull(in);
     this.in = in;
