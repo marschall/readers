@@ -3,7 +3,6 @@ package com.github.marschall.readers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.io.Writer;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
@@ -114,7 +113,61 @@ public final class BufferedUtf8InputStreamReader extends Reader {
       this.hasPendingLowSurrogate = false;
       read += 1;
     }
-    // TODO Auto-generated method stub
+    while ((read < len) && (this.capacity > 0)) {
+      if (isPowerOf8(this.position) && isPowerOf8(off + read) && ((len - read) >= 8) && (this.capacity >= 8) && isAsciiRange(this.buffer, this.position)) {
+        // bulk copy 8 ASCII characters
+        copy8(this.buffer, this.position, cbuf, off + read);
+        this.position += 8;
+        this.capacity -= 8;
+        read += 8;
+      } else {
+        // slow path
+        // go byte by byte, either because
+        // - #position is not aligned
+        // - #off + read is not aligned
+        // - less than 8 character left to read
+        // - buffer contains less than 8 bytes
+        // - one of the next 8 bytes is not ASCII
+        byte b = this.buffer[this.position];
+        int byteLength = Utf8Utils.getByteLength(b);
+        if (byteLength == 1) {
+          this.position += 1;
+          this.capacity -= 1;
+          // ASCII character, single type
+          cbuf[off + read] = (char) Byte.toUnsignedInt(b);
+          read += 1;
+        } else if (byteLength <= this.capacity) {
+          // non-ASCII multi-byte character
+          int codePoint = this.readMultiByteCharacter(byteLength);
+          this.position += byteLength;
+          this.capacity -= byteLength;
+          if (Character.isBmpCodePoint(codePoint)) {
+            // BMP character, single Java char
+            cbuf[off + read] = (char) codePoint;
+            read += 1;
+          } else {
+            // non-BMP character, two Java char
+            cbuf[off + read] = Character.highSurrogate(codePoint);
+            read += 1;
+            if ((len - read) >= 1) {
+              // we can read both characters
+              cbuf[off + read] = Character.lowSurrogate(codePoint);
+              read += 1;
+            } else {
+              // we can skip only the high surrogate pair
+              this.hasPendingLowSurrogate = true;
+              this.lowSurrogate = Character.lowSurrogate(codePoint);
+              // we can abort
+              return read;
+            }
+          }
+        } else {
+          // not enough bytes in the buffer left to decode the next character
+          // we decoded at least 1 character, abort, let the caller deal with it
+          return read;
+        }
+      }
+    }
     return read;
   }
 
@@ -138,10 +191,11 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     dst[destPos + 7] = (char) src[srcPos + 7];
   }
 
-  @Override
-  public long transferTo(Writer out) throws IOException {
-    throw new IOException();
-  }
+//  @Override
+//  public long transferTo(Writer out) throws IOException {
+//    // TODO implement
+//    throw new IOException();
+//  }
 
   @Override
   public long skip(long n) throws IOException {
@@ -175,14 +229,16 @@ public final class BufferedUtf8InputStreamReader extends Reader {
         // - buffer contains less than 8 bytes
         // - one of the next 8 bytes is not ASCII
         int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
-        this.position += byteLength;
-        this.capacity -= byteLength;
         if (byteLength == 1) {
+          this.position += 1;
+          this.capacity -= 1;
           // ASCII character, single type
           skipped += 1;
         } else if (byteLength <= this.capacity) {
           // non-ASCII multi-byte character
           int codePoint = this.readMultiByteCharacter(byteLength);
+          this.position += byteLength;
+          this.capacity -= byteLength;
           if (Character.isBmpCodePoint(codePoint)) {
             // BMP character, single Java char
             skipped += 1;
@@ -193,7 +249,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
               skipped += 2;
             } else {
               skipped += 1;
-              // we can skip only the high surogate pair
+              // we can skip only the high surrogate pair
               this.hasPendingLowSurrogate = true;
               this.lowSurrogate = Character.lowSurrogate(codePoint);
               // we can abort

@@ -3,8 +3,6 @@ package com.github.marschall.readers;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -23,10 +21,6 @@ class Utf8InputStreamReadersTests {
   @MethodSource("readers")
   void read(Reader reader) throws IOException {
     try (reader) {
-      if (!(reader instanceof Utf8InputStreamReader)) {
-        // is ready not implemented for Utf8InputStreamReader
-        assertTrue(reader.ready());
-      }
       assertEquals(0x0024, reader.read());
       assertEquals(0x00A2, reader.read());
       assertEquals(0x0939, reader.read());
@@ -34,7 +28,6 @@ class Utf8InputStreamReadersTests {
       assertEquals(0xD55C, reader.read());
       assertEquals(Character.highSurrogate(0x10348), reader.read());
       assertEquals(Character.lowSurrogate(0x10348), reader.read());
-      assertFalse(reader.ready());
       assertEquals(-1, reader.read());
     }
   }
@@ -43,10 +36,6 @@ class Utf8InputStreamReadersTests {
   @MethodSource("readers")
   void skip(Reader reader) throws IOException {
     try (reader) {
-      if (!(reader instanceof Utf8InputStreamReader)) {
-        // is ready not implemented for Utf8InputStreamReader
-        assertTrue(reader.ready());
-      }
       assertEquals(2L, reader.skip(2L));
 //      assertEquals(0x0024, reader.read());
 //      assertEquals(0x00A2, reader.read());
@@ -56,7 +45,6 @@ class Utf8InputStreamReadersTests {
 //      assertEquals(0xD55C, reader.read());
 //      assertEquals(Character.highSurrogate(0x10348), reader.read());
       assertEquals(Character.lowSurrogate(0x10348), reader.read());
-      assertFalse(reader.ready());
       assertEquals(-1, reader.read());
     }
   }
@@ -70,7 +58,6 @@ class Utf8InputStreamReadersTests {
       assertEquals(expected.length, reader.read(actual));
       assertArrayEquals(expected, actual);
       assertEquals(-1, reader.read(actual));
-      assertFalse(reader.ready());
     }
   }
 
@@ -84,7 +71,6 @@ class Utf8InputStreamReadersTests {
               new char[] { 0x0024, 0x00A2, 0x0939, 0x20AC, 0xD55C, Character.highSurrogate(0x10348), Character.lowSurrogate(0x10348)});
       assertEquals(expected, stringWriter.toString());
 
-      assertFalse(reader.ready());
       assertEquals(-1, reader.read());
     }
   }
@@ -92,7 +78,7 @@ class Utf8InputStreamReadersTests {
   private static List<Reader> readers() {
     return List.of(
         new InputStreamReader(newByteArrayInputStream(), UTF_8),
-//        new BufferedUtf8InputStreamReader(newByteArrayInputStream()),
+        new BufferedUtf8InputStreamReader(newByteArrayInputStream()),
         new Utf8InputStreamReader(newByteArrayInputStream())
         );
   }
