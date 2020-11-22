@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,10 +51,36 @@ class Utf8InputStreamReadersTests {
   }
 
   @ParameterizedTest
+  @MethodSource("asciiReaders")
+  void skipAscii(Reader reader) throws IOException {
+    try (reader) {
+      char[] input = new char[] {65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90};
+      char[] actual = new char[input.length - 8];
+      assertEquals(8, reader.skip(8L));
+      assertEquals(input.length - 8, reader.read(actual));
+      char[] expected = Arrays.copyOfRange(input, 8, input.length);
+      assertArrayEquals(expected, actual);
+      assertEquals(-1, reader.read());
+    }
+  }
+
+  @ParameterizedTest
   @MethodSource("readers")
   void readCharArray(Reader reader) throws IOException {
     try (reader) {
       char[] expected = new char[] { 0x0024, 0x00A2, 0x0939, 0x20AC, 0xD55C, Character.highSurrogate(0x10348), Character.lowSurrogate(0x10348)};
+      char[] actual = new char[expected.length];
+      assertEquals(expected.length, reader.read(actual));
+      assertArrayEquals(expected, actual);
+      assertEquals(-1, reader.read(actual));
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("asciiReaders")
+  void readCharArrayAscii(Reader reader) throws IOException {
+    try (reader) {
+      char[] expected = new char[] {65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90};
       char[] actual = new char[expected.length];
       assertEquals(expected.length, reader.read(actual));
       assertArrayEquals(expected, actual);
@@ -92,6 +119,22 @@ class Utf8InputStreamReadersTests {
         (byte) 0xED, (byte) 0x95, (byte) 0x9C,
         (byte) 0xF0, (byte) 0x90, (byte) 0x8D, (byte) 0x88
     });
+  }
+
+  private static List<Reader> asciiReaders() {
+    return List.of(
+            new InputStreamReader(newAsciiByteArrayInputStream(), UTF_8),
+            new BufferedUtf8InputStreamReader(newAsciiByteArrayInputStream()),
+            new Utf8InputStreamReader(newAsciiByteArrayInputStream())
+            );
+  }
+
+  private static InputStream newAsciiByteArrayInputStream() {
+    byte[] data = new byte[('Z' - 'A') + 1];
+    for (int i = 'A'; i <= 'Z'; i++) {
+      data[i - 'A'] = (byte) i;
+    }
+    return new ByteArrayInputStream(data);
   }
 
 }

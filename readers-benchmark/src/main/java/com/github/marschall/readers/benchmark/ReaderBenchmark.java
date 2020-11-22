@@ -120,7 +120,7 @@ public class ReaderBenchmark {
     }
   }
 
-//  @Benchmark
+  @Benchmark
   public void readSingleCharBufferedUtf8InputStreamReader(Blackhole blackhole) throws IOException {
     int c = this.bufferedUtf8InputStreamReader.read();
     while (c != -1) {
@@ -129,7 +129,7 @@ public class ReaderBenchmark {
     }
   }
 
-//  @Benchmark
+  @Benchmark
   public void readMultipleCharBufferedUtf8InputStreamReader(Blackhole blackhole) throws IOException {
     int c = this.bufferedUtf8InputStreamReader.read(this.bufferedUtf8InputStreamReaderBuffer);
     while (c != -1) {

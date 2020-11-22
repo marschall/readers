@@ -12,7 +12,7 @@ public class Main {
     String fileName = "readers-result.txt";
     Options options = new OptionsBuilder()
         .include(".*ReaderBenchmark.*")
-        .warmupIterations(5)
+        .warmupIterations(3)
         .measurementIterations(5)
         .resultFormat(ResultFormatType.TEXT)
         .result(fileName)
