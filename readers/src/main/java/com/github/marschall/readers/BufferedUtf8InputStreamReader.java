@@ -101,6 +101,40 @@ public final class BufferedUtf8InputStreamReader extends Reader {
   }
 
   @Override
+  public int read() throws IOException {
+    this.closedCheck();
+    if (this.ensureNotEmpty() == -1) {
+      return -1;
+    }
+    if (this.hasPendingLowSurrogate) {
+      this.hasPendingLowSurrogate = false;
+      return this.lowSurrogate;
+    }
+    byte b = this.buffer[this.position];
+    int byteLength = Utf8Utils.getByteLength(b);
+    if (byteLength == 1) {
+      this.position += 1;
+      this.capacity -= 1;
+      return (char) Byte.toUnsignedInt(b);
+    } else {
+      // non-ASCII multi-byte character
+      // ensureNotEmpty did the buffer size checks
+      int codePoint = this.readMultiByteCharacter(byteLength);
+      this.position += byteLength;
+      this.capacity -= byteLength;
+      if (Character.isBmpCodePoint(codePoint)) {
+        // BMP character, single Java char
+        return (char) codePoint;
+      } else {
+        this.hasPendingLowSurrogate = true;
+        this.lowSurrogate = Character.lowSurrogate(codePoint);
+        // non-BMP character, two Java char
+        return Character.highSurrogate(codePoint);
+      }
+    }
+  }
+
+  @Override
   public int read(char[] cbuf, int off, int len) throws IOException {
     this.closedCheck();
     if (this.ensureNotEmpty() == -1) {
