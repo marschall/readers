@@ -14,18 +14,15 @@ final class Utf8Utils {
   }
 
   static int getByteLength(int i) throws IOException {
-    if (i < 0b1000_0000) {
+    if ((i & 0b1000_0000) == 0) {
       return 1;
-    } else if (i >= 0b110_00000) {
-      if (i < 0b1110_0000) {
-        return 2;
-      } else if (i < 0b11110_000) {
-        return 3;
-      } else if (i < 0b111110_00) {
-        return 4;
+    } else {
+      int byteLength = Integer.numberOfLeadingZeros((i << 24) ^ -1);
+      if ((byteLength < 2) || (byteLength > 4)) {
+        throw new IOException("invalid utf-8 first byte");
       }
+      return byteLength;
     }
-    throw new IOException("invalid utf-8 first byte");
   }
 
 }
