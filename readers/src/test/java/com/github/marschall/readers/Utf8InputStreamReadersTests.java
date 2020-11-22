@@ -1,5 +1,7 @@
 package com.github.marschall.readers;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,7 +12,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -62,6 +63,19 @@ class Utf8InputStreamReadersTests {
 
   @ParameterizedTest
   @MethodSource("readers")
+  void readCharArray(Reader reader) throws IOException {
+    try (reader) {
+      char[] expected = new char[] { 0x0024, 0x00A2, 0x0939, 0x20AC, 0xD55C, Character.highSurrogate(0x10348), Character.lowSurrogate(0x10348)};
+      char[] actual = new char[expected.length];
+      assertEquals(expected.length, reader.read(actual));
+      assertArrayEquals(expected, actual);
+      assertEquals(-1, reader.read(actual));
+      assertFalse(reader.ready());
+    }
+  }
+
+  @ParameterizedTest
+  @MethodSource("readers")
   void transferTo(Reader reader) throws IOException {
     try (reader) {
       StringWriter stringWriter = new StringWriter();
@@ -77,8 +91,8 @@ class Utf8InputStreamReadersTests {
 
   private static List<Reader> readers() {
     return List.of(
-        new InputStreamReader(newByteArrayInputStream(), StandardCharsets.UTF_8),
-        new BufferedUtf8InputStreamReader(newByteArrayInputStream()),
+        new InputStreamReader(newByteArrayInputStream(), UTF_8),
+//        new BufferedUtf8InputStreamReader(newByteArrayInputStream()),
         new Utf8InputStreamReader(newByteArrayInputStream())
         );
   }

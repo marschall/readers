@@ -279,6 +279,6 @@
   <properties>
     <project.reporting.outputEncoding>utf-8</project.reporting.outputEncoding>
     <project.build.sourceEncoding>utf-8</project.build.sourceEncoding>
-    <jmh.version>1.21</jmh.version>
+    <jmh.version>1.26</jmh.version>
   </properties>
 </project>

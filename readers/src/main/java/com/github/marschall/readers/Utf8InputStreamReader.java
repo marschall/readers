@@ -153,14 +153,20 @@ public final class Utf8InputStreamReader extends Reader {
   public int read(char[] cbuf, int off, int len) throws IOException {
     this.closedCheck();
     Objects.checkFromIndexSize(off, len, cbuf.length);
-    for (int i = 0; i < len; i++) {
+    int read = 0;
+    while (read < len) {
       int c = this.readIml();
       if (c == -1) {
-        return i;
+        if (read == 0) {
+          return -1;
+        } else {
+          return read;
+        }
       }
-      cbuf[off + i] = (char) c;
+      cbuf[off + read] = (char) c;
+      read += 1;
     }
-    return len;
+    return read;
   }
 
   private void closedCheck() throws IOException {
