@@ -59,7 +59,16 @@ public final class Utf8InputStreamReader extends Reader {
       if (byteLength == 1) {
         return c1;
       } else {
-        return this.readMultiByteCharacter(c1, byteLength);
+        int codePoint = this.readMultiByteCharacter(c1, byteLength);
+        if (Character.isBmpCodePoint(codePoint)) {
+          // BMP character, single Java char
+          return (char) codePoint;
+        } else {
+          this.hasPendingLowSurrogate = true;
+          this.lowSurrogate = Character.lowSurrogate(codePoint);
+          // non-BMP character, two Java char
+          return Character.highSurrogate(codePoint);
+        }
       }
     }
   }
@@ -77,14 +86,7 @@ public final class Utf8InputStreamReader extends Reader {
       int value = next & 0b111111;
       codePoint = (codePoint << 6) | value;
     }
-    if (Character.isBmpCodePoint(codePoint)) {
-      return codePoint;
-    } else {
-      char highSurrogate = Character.highSurrogate(codePoint);
-      this.hasPendingLowSurrogate = true;
-      this.lowSurrogate = Character.lowSurrogate(codePoint);
-      return highSurrogate;
-    }
+    return codePoint;
   }
 
   @Override
@@ -107,13 +109,31 @@ public final class Utf8InputStreamReader extends Reader {
         return skipped;
       }
       int byteLength = Utf8Utils.getByteLength(c1);
-      if (byteLength > 1) {
-        int mbc = this.readMultiByteCharacter(c1, byteLength);
-        if (mbc == -1) {
+      if (byteLength == 1) {
+        // ASCII character, single byte
+        skipped += 1L;
+      } else {
+        int codePoint = this.readMultiByteCharacter(c1, byteLength);
+        if (codePoint == -1) {
           return skipped;
+        } else if (Character.isBmpCodePoint(codePoint)) {
+          // BMP character, single Java char
+          skipped += 1L;
+        } else {
+          // non-BMP character, two Java char
+          if ((n - skipped) >= 2) {
+            // we can skip both characters
+            skipped += 2;
+          } else {
+            skipped += 1;
+            // we can skip only the high surrogate pair
+            this.hasPendingLowSurrogate = true;
+            this.lowSurrogate = Character.lowSurrogate(codePoint);
+            // we can abort
+            return skipped;
+          }
         }
       }
-      skipped += 1L;
     }
     return skipped;
   }

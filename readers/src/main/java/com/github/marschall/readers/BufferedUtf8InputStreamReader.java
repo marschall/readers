@@ -287,7 +287,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
         if (byteLength == 1) {
           this.position += 1;
           this.capacity -= 1;
-          // ASCII character, single type
+          // ASCII character, single byte
           skipped += 1;
         } else if (byteLength <= this.capacity) {
           // non-ASCII multi-byte character
