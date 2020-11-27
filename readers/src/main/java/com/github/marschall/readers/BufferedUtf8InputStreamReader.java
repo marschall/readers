@@ -144,11 +144,10 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     if (this.ensureNotEmpty() == -1) {
       return -1;
     }
-    byte b = this.buffer[this.position];
+    byte b = this.buffer[this.position++];
+    this.capacity -= 1;
     int byteLength = Utf8Utils.getByteLength(b);
     if (byteLength == 1) {
-      this.position += 1;
-      this.capacity -= 1;
       return (char) Byte.toUnsignedInt(b);
     } else if (byteLength > MAX_BYTE_LENGTH) {
       // invalid input
@@ -197,16 +196,15 @@ public final class BufferedUtf8InputStreamReader extends Reader {
         // - less than 8 character left to read
         // - buffer contains less than 8 bytes
         // - one of the next 8 bytes is not ASCII
-        byte b = this.buffer[this.position];
+        byte b = this.buffer[this.position++];
+        this.capacity -= 1;
         int byteLength = Utf8Utils.getByteLength(b);
         if (byteLength == 1 || byteLength > MAX_BYTE_LENGTH) {
           // ASCII character, single type
           // or invalid input
-          this.position += 1;
-          this.capacity -= 1;
           cbuf[off + read] = (char) Byte.toUnsignedInt(b);
           read += 1;
-        } else if (byteLength <= this.capacity) {
+        } else if (byteLength <= this.capacity + 1) {
           // non-ASCII multi-byte character
           int codePoint = this.readMultiByteCharacter(b, byteLength);
           if (Character.isBmpCodePoint(codePoint)) {
@@ -296,15 +294,14 @@ public final class BufferedUtf8InputStreamReader extends Reader {
         // - less than 8 character left to skip
         // - buffer contains less than 8 bytes
         // - one of the next 8 bytes is not ASCII
-        byte b = this.buffer[this.position];
+        byte b = this.buffer[this.position++];
+        this.capacity -= 1;
         int byteLength = Utf8Utils.getByteLength(b);
         if (byteLength == 1 || byteLength > MAX_BYTE_LENGTH) {
-          this.position += 1;
-          this.capacity -= 1;
           // ASCII character, single byte
           // or invalid input
           skipped += 1;
-        } else if (byteLength <= this.capacity) {
+        } else if (byteLength <= this.capacity + 1) {
           // non-ASCII multi-byte character
           int codePoint = this.readMultiByteCharacter(b, byteLength);
           if (Character.isBmpCodePoint(codePoint)) {
@@ -338,7 +335,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     int codePoint = b1 & ((1 << (7 - byteLength)) - 1);
     boolean valid = true;
     for (int i = 0; i < (byteLength - 1); i++) {
-      int next = Byte.toUnsignedInt(this.buffer[this.position + i + 1]);
+      int next = Byte.toUnsignedInt(this.buffer[this.position + i]);
       if (next == -1) {
         this.position += i + 1;
         this.capacity -= i + 1;
@@ -350,8 +347,8 @@ public final class BufferedUtf8InputStreamReader extends Reader {
       codePoint = (codePoint << 6) | value;
     }
     if (valid) {
-      this.position += byteLength;
-      this.capacity -= byteLength;
+      this.position += byteLength - 1;
+      this.capacity -= byteLength - 1;
       return codePoint;
     } else {
       return REPLACEMENT;
