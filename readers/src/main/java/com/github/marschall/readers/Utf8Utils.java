@@ -17,11 +17,7 @@ final class Utf8Utils {
     if ((i & 0b1000_0000) == 0) {
       return 1;
     } else {
-      int byteLength = Integer.numberOfLeadingZeros((i << 24) ^ -1);
-      if ((byteLength < 2) || (byteLength > 4)) {
-        throw new IOException("invalid utf-8 first byte");
-      }
-      return byteLength;
+      return Integer.numberOfLeadingZeros((i << 24) ^ -1);
     }
   }
 

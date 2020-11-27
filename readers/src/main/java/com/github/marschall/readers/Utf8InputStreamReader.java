@@ -19,6 +19,13 @@ import java.util.Objects;
  */
 public final class Utf8InputStreamReader extends Reader {
 
+  private static final int MAX_BYTE_LENGTH = 4;
+
+  /**
+   * Unicode replacement character.
+   */
+  private static final int REPLACEMENT = 0xFFFD;
+
   private boolean closed;
 
   private final InputStream in;
@@ -58,6 +65,8 @@ public final class Utf8InputStreamReader extends Reader {
       int byteLength = Utf8Utils.getByteLength(c1);
       if (byteLength == 1) {
         return c1;
+      } else if (byteLength > MAX_BYTE_LENGTH) {
+        return REPLACEMENT;
       } else {
         int codePoint = this.readMultiByteCharacter(c1, byteLength);
         if (Character.isBmpCodePoint(codePoint)) {
@@ -75,18 +84,22 @@ public final class Utf8InputStreamReader extends Reader {
 
   private int readMultiByteCharacter(int c1, int byteLength) throws IOException {
     int codePoint = c1 & ((1 << (7 - byteLength)) - 1);
+    boolean valid = true;
     for (int i = 0; i < (byteLength - 1); i++) {
       int next = this.in.read();
       if (next == -1) {
-        return -1;
+        return REPLACEMENT;
       }
-      if ((next & 0b11000000) != 0b10000000) {
-        throw new IOException("malformed input");
-      }
+      // all bytes except the first must start with 10xxxxxx
+      valid &= (next & 0b11000000) == 0b10000000;
       int value = next & 0b111111;
       codePoint = (codePoint << 6) | value;
     }
-    return codePoint;
+    if (valid) {
+      return codePoint;
+    } else {
+      return REPLACEMENT;
+    }
   }
 
   @Override
@@ -109,8 +122,9 @@ public final class Utf8InputStreamReader extends Reader {
         return skipped;
       }
       int byteLength = Utf8Utils.getByteLength(c1);
-      if (byteLength == 1) {
+      if (byteLength == 1 || byteLength > MAX_BYTE_LENGTH) {
         // ASCII character, single byte
+        // or invalid input, skip single byte
         skipped += 1L;
       } else {
         int codePoint = this.readMultiByteCharacter(c1, byteLength);

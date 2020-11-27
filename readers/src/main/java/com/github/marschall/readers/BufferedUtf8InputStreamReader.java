@@ -25,6 +25,13 @@ import java.util.Objects;
  */
 public final class BufferedUtf8InputStreamReader extends Reader {
 
+  private static final int MAX_BYTE_LENGTH = 4;
+
+  /**
+   * Unicode replacement character.
+   */
+  private static final int REPLACEMENT = 0xFFFD;
+
   static final VarHandle LONG_ACCESS = MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.nativeOrder());
 
   private boolean closed;
@@ -70,10 +77,15 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     this.hasPendingLowSurrogate = false;
   }
 
+  /**
+   * 
+   * <p>The caller is responsible for checking {@link #hasPendingLowSurrogate}.
+   * 
+   * @return 1 if at least one char is in the buffer,
+   *         -1 if no longer a full char is available from the buffer
+   * @throws IOException if reading fails
+   */
   private int ensureNotEmpty() throws IOException {
-    if (this.hasPendingLowSurrogate) {
-      return 1;
-    }
     // at least one character is available
     if (this.capacity >= 4) {
       return 1;
@@ -91,7 +103,8 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     }
 
     int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
-    if (byteLength > this.capacity) {
+    if (byteLength > this.capacity && byteLength <= MAX_BYTE_LENGTH) {
+      // input is valid
       // not a full character is available
       if (this.position > 0) {
         System.arraycopy(this.buffer, this.position, this.buffer, 0, this.capacity);
@@ -117,19 +130,19 @@ public final class BufferedUtf8InputStreamReader extends Reader {
       return false;
     } else {
       int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
-      return byteLength >= this.capacity;
+      return byteLength <= MAX_BYTE_LENGTH && byteLength >= this.capacity;
     }
   }
 
   @Override
   public int read() throws IOException {
     this.closedCheck();
-    if (this.ensureNotEmpty() == -1) {
-      return -1;
-    }
     if (this.hasPendingLowSurrogate) {
       this.hasPendingLowSurrogate = false;
       return this.lowSurrogate;
+    }
+    if (this.ensureNotEmpty() == -1) {
+      return -1;
     }
     byte b = this.buffer[this.position];
     int byteLength = Utf8Utils.getByteLength(b);
@@ -137,12 +150,13 @@ public final class BufferedUtf8InputStreamReader extends Reader {
       this.position += 1;
       this.capacity -= 1;
       return (char) Byte.toUnsignedInt(b);
+    } else if (byteLength > MAX_BYTE_LENGTH) {
+      // invalid input
+      return REPLACEMENT;
     } else {
       // non-ASCII multi-byte character
       // ensureNotEmpty did the buffer size checks
-      int codePoint = this.readMultiByteCharacter(byteLength);
-      this.position += byteLength;
-      this.capacity -= byteLength;
+      int codePoint = this.readMultiByteCharacter(b, byteLength);
       if (Character.isBmpCodePoint(codePoint)) {
         // BMP character, single Java char
         return (char) codePoint;
@@ -158,15 +172,15 @@ public final class BufferedUtf8InputStreamReader extends Reader {
   @Override
   public int read(char[] cbuf, int off, int len) throws IOException {
     this.closedCheck();
-    if (this.ensureNotEmpty() == -1) {
-      return -1;
-    }
     Objects.checkFromIndexSize(off, len, cbuf.length);
     int read = 0;
     if (this.hasPendingLowSurrogate) {
       cbuf[off] = this.lowSurrogate;
       this.hasPendingLowSurrogate = false;
       read += 1;
+    }
+    if (this.ensureNotEmpty() == -1) {
+      return -1;
     }
     while ((read < len) && (this.capacity > 0)) {
       if (isPowerOf8(this.position) && isPowerOf8(off + read) && ((len - read) >= 8) && (this.capacity >= 8) && isAsciiRange(this.buffer, this.position)) {
@@ -185,17 +199,16 @@ public final class BufferedUtf8InputStreamReader extends Reader {
         // - one of the next 8 bytes is not ASCII
         byte b = this.buffer[this.position];
         int byteLength = Utf8Utils.getByteLength(b);
-        if (byteLength == 1) {
+        if (byteLength == 1 || byteLength > MAX_BYTE_LENGTH) {
+          // ASCII character, single type
+          // or invalid input
           this.position += 1;
           this.capacity -= 1;
-          // ASCII character, single type
           cbuf[off + read] = (char) Byte.toUnsignedInt(b);
           read += 1;
         } else if (byteLength <= this.capacity) {
           // non-ASCII multi-byte character
-          int codePoint = this.readMultiByteCharacter(byteLength);
-          this.position += byteLength;
-          this.capacity -= byteLength;
+          int codePoint = this.readMultiByteCharacter(b, byteLength);
           if (Character.isBmpCodePoint(codePoint)) {
             // BMP character, single Java char
             cbuf[off + read] = (char) codePoint;
@@ -283,17 +296,17 @@ public final class BufferedUtf8InputStreamReader extends Reader {
         // - less than 8 character left to skip
         // - buffer contains less than 8 bytes
         // - one of the next 8 bytes is not ASCII
-        int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
-        if (byteLength == 1) {
+        byte b = this.buffer[this.position];
+        int byteLength = Utf8Utils.getByteLength(b);
+        if (byteLength == 1 || byteLength > MAX_BYTE_LENGTH) {
           this.position += 1;
           this.capacity -= 1;
           // ASCII character, single byte
+          // or invalid input
           skipped += 1;
         } else if (byteLength <= this.capacity) {
           // non-ASCII multi-byte character
-          int codePoint = this.readMultiByteCharacter(byteLength);
-          this.position += byteLength;
-          this.capacity -= byteLength;
+          int codePoint = this.readMultiByteCharacter(b, byteLength);
           if (Character.isBmpCodePoint(codePoint)) {
             // BMP character, single Java char
             skipped += 1;
@@ -321,20 +334,28 @@ public final class BufferedUtf8InputStreamReader extends Reader {
     return skipped;
   }
 
-  private int readMultiByteCharacter(int byteLength) throws IOException {
-    int codePoint = Byte.toUnsignedInt(this.buffer[this.position]) & ((1 << (7 - byteLength)) - 1);
+  private int readMultiByteCharacter(byte b1, int byteLength) throws IOException {
+    int codePoint = b1 & ((1 << (7 - byteLength)) - 1);
+    boolean valid = true;
     for (int i = 0; i < (byteLength - 1); i++) {
       int next = Byte.toUnsignedInt(this.buffer[this.position + i + 1]);
       if (next == -1) {
-        return -1;
+        this.position += i + 1;
+        this.capacity -= i + 1;
+        return REPLACEMENT;
       }
-      if ((next & 0b11000000) != 0b10000000) {
-        throw new IOException("malformed input");
-      }
+      // all bytes except the first must start with 10xxxxxx
+      valid &= (next & 0b11000000) == 0b10000000;
       int value = next & 0b111111;
       codePoint = (codePoint << 6) | value;
     }
-    return codePoint;
+    if (valid) {
+      this.position += byteLength;
+      this.capacity -= byteLength;
+      return codePoint;
+    } else {
+      return REPLACEMENT;
+    }
   }
 
   private void closedCheck() throws IOException {

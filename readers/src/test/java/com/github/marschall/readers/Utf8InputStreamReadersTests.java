@@ -16,7 +16,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -180,10 +179,11 @@ class Utf8InputStreamReadersTests {
 
   @ParameterizedTest
   @MethodSource("invalidReaders")
-  @Disabled
   void invalid(Reader reader) throws IOException {
     try (reader) {
       assertEquals(0xFFFD, reader.read());
+      assertEquals(-1, reader.read());
+//      assertEquals('A', reader.read());
     }
   }
   
