@@ -66,6 +66,7 @@ public final class Utf8InputStreamReader extends Reader {
       if (byteLength == 1) {
         return c1;
       } else if (byteLength > MAX_BYTE_LENGTH) {
+        // TODO for longer lengths skip the characters
         return REPLACEMENT;
       } else {
         int codePoint = this.readMultiByteCharacter(c1, byteLength);
@@ -83,21 +84,61 @@ public final class Utf8InputStreamReader extends Reader {
   }
 
   private int readMultiByteCharacter(int c1, int byteLength) throws IOException {
-    int codePoint = c1 & ((1 << (7 - byteLength)) - 1);
-    boolean valid = true;
-    for (int i = 0; i < (byteLength - 1); i++) {
-      int next = this.in.read();
-      if (next == -1) {
+    // https://unicode.org/versions/corrigendum1.html
+    switch (byteLength) {
+    case 2: {
+      int c2 = this.in.read();
+      
+      if (c2 == -1) {
         return REPLACEMENT;
       }
-      // all bytes except the first must start with 10xxxxxx
-      valid &= (next & 0b11000000) == 0b10000000;
-      int value = next & 0b111111;
-      codePoint = (codePoint << 6) | value;
+      
+      if ((c1 >= 0xC2 & c1 <= 0xDF) & (c2 >= 0x80 & c2 <= 0xBF)) {
+        return ((c1 & 0b00011111) << 6) | (c2 & 0b00111111);
+      } else {
+        return REPLACEMENT;
+      }
     }
-    if (valid) {
-      return codePoint;
-    } else {
+
+
+    case 3: {
+      int c2 = this.in.read();
+      int c3 = this.in.read();
+      
+      if (c2 == -1 | c3 == -1) {
+        return REPLACEMENT;
+      }
+      if (((c1 == 0xE0 & c2 >= 0xA0 & c2 <= 0xBF)
+          | (c1 >= 0xE1 & c1 <= 0xEF & c2 >= 0x80 & c2 <= 0xBF))
+          & (c3 >= 0x80 | c3 <= 0xBF)) {
+        return ((c1 & 0b000101111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
+      } else {
+        return REPLACEMENT;
+      }
+
+    }
+
+    case 4: {
+      int c2 = this.in.read();
+      int c3 = this.in.read();
+      int c4 = this.in.read();
+      if (c2 == -1 | c3 == -1 | c4 == -1) {
+        return REPLACEMENT;
+      }
+      
+      if (((c1 == 0xF0 & c2 >= 0x90 & c2 <= 0xBF)
+          | (c1 >= 0xF1 & c1 <= 0xF3 & c2 >= 0x80 & c2 <= 0xBF)
+          | (c1 == 0xF4 & c2 >= 0x80 & c2 <= 0x8F))
+          & (c3 >= 0x80 | c3 <= 0xBF)
+          & (c4 >= 0x80 | c4 <= 0xBF)) {
+        return ((c1 & 0b000101111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
+      } else {
+        return REPLACEMENT;
+      }
+
+    }
+
+    default:
       return REPLACEMENT;
     }
   }
@@ -125,6 +166,7 @@ public final class Utf8InputStreamReader extends Reader {
       if (byteLength == 1 || byteLength > MAX_BYTE_LENGTH) {
         // ASCII character, single byte
         // or invalid input, skip single byte
+        // TODO for longer lengths skip the characters
         skipped += 1L;
       } else {
         int codePoint = this.readMultiByteCharacter(c1, byteLength);

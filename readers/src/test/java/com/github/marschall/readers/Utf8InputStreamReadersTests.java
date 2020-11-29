@@ -45,52 +45,52 @@ class Utf8InputStreamReadersTests {
   void skipHighSurrogate(Reader reader) throws IOException {
     try (reader) {
       assertEquals(2L, reader.skip(2L));
-//      assertEquals(0x0024, reader.read());
-//      assertEquals(0x00A2, reader.read());
+      //      assertEquals(0x0024, reader.read());
+      //      assertEquals(0x00A2, reader.read());
       assertEquals(0x0939, reader.read());
       assertEquals(3L, reader.skip(3L));
-//      assertEquals(0x20AC, reader.read());
-//      assertEquals(0xD55C, reader.read());
-//      assertEquals(Character.highSurrogate(0x10348), reader.read());
+      //      assertEquals(0x20AC, reader.read());
+      //      assertEquals(0xD55C, reader.read());
+      //      assertEquals(Character.highSurrogate(0x10348), reader.read());
       assertEquals(Character.lowSurrogate(0x10348), reader.read());
       assertEquals(0x0024, reader.read());
       assertEquals(-1, reader.read());
     }
     assertThrows(IOException.class, () -> reader.skip(1L));
   }
-  
+
   @ParameterizedTest
   @MethodSource("readers")
   void skipLowSurrogate(Reader reader) throws IOException {
     try (reader) {
       assertEquals(5L, reader.skip(5L));
-//      assertEquals(0x0024, reader.read());
-//      assertEquals(0x00A2, reader.read());
-//      assertEquals(0x0939, reader.read());
-//      assertEquals(0x20AC, reader.read());
-//      assertEquals(0xD55C, reader.read());
+      //      assertEquals(0x0024, reader.read());
+      //      assertEquals(0x00A2, reader.read());
+      //      assertEquals(0x0939, reader.read());
+      //      assertEquals(0x20AC, reader.read());
+      //      assertEquals(0xD55C, reader.read());
       assertEquals(Character.highSurrogate(0x10348), reader.read());
       assertEquals(1L, reader.skip(1L));
-//      assertEquals(Character.lowSurrogate(0x10348), reader.read());
+      //      assertEquals(Character.lowSurrogate(0x10348), reader.read());
       assertEquals(0x0024, reader.read());
       assertEquals(-1, reader.read());
     }
     assertThrows(IOException.class, () -> reader.skip(1L));
   }
-  
+
   @ParameterizedTest
   @MethodSource("readers")
   void skipAtEnd(Reader reader) throws IOException {
     try (reader) {
       assertEquals(8L, reader.skip(8L));
-//      assertEquals(0x0024, reader.read());
-//      assertEquals(0x00A2, reader.read());
-//      assertEquals(0x0939, reader.read());
-//      assertEquals(0x20AC, reader.read());
-//      assertEquals(0xD55C, reader.read());
-//      assertEquals(Character.highSurrogate(0x10348), reader.read());
-//      assertEquals(Character.lowSurrogate(0x10348), reader.read());
-//      assertEquals(0x0024, reader.read());
+      //      assertEquals(0x0024, reader.read());
+      //      assertEquals(0x00A2, reader.read());
+      //      assertEquals(0x0939, reader.read());
+      //      assertEquals(0x20AC, reader.read());
+      //      assertEquals(0xD55C, reader.read());
+      //      assertEquals(Character.highSurrogate(0x10348), reader.read());
+      //      assertEquals(Character.lowSurrogate(0x10348), reader.read());
+      //      assertEquals(0x0024, reader.read());
       assertEquals(0L, reader.skip(1L));
       assertEquals(-1, reader.read());
     }
@@ -123,7 +123,7 @@ class Utf8InputStreamReadersTests {
     }
     assertThrows(IOException.class, () -> reader.read(new char[1]));
   }
-  
+
   @ParameterizedTest
   @MethodSource("readers")
   void readCharArrayLarger(Reader reader) throws IOException {
@@ -179,15 +179,14 @@ class Utf8InputStreamReadersTests {
 
   @ParameterizedTest
   @MethodSource("invalidReaders")
-  @org.junit.jupiter.api.Disabled
   void invalid(Reader reader) throws IOException {
     try (reader) {
       assertEquals(0xFFFD, reader.read());
-      assertEquals(-1, reader.read());
-//      assertEquals('A', reader.read());
+      //      assertEquals(-1, reader.read());
+      //      assertEquals('A', reader.read());
     }
   }
-  
+
   private static List<Reader> makeReaders(byte[] b) {
     return List.of(
         new InputStreamReader(new ByteArrayInputStream(b.clone()), UTF_8),
@@ -215,11 +214,11 @@ class Utf8InputStreamReadersTests {
   private static List<Reader> asciiReaders() {
     return makeReaders(asciiByteArray());
   }
-  
+
   private static List<Reader> invalidReaders() {
     return invalidSequences().stream()
-          .flatMap(b -> makeReaders(b).stream())
-          .collect(Collectors.toList());
+        .flatMap(b -> makeReaders(b).stream())
+        .collect(Collectors.toList());
   }
 
   private static byte[] asciiByteArray() {
@@ -229,22 +228,81 @@ class Utf8InputStreamReadersTests {
     }
     return data;
   }
-  
+
   private static List<byte[]> invalidSequences() {
     List<byte[]> invalidSequences = new ArrayList<>();
+
     for (int i = 0xC0; i <= 0xC1; i++) {
       invalidSequences.add(new byte[] {(byte) i});
     }
+
     for (int i = 0xF5; i <= 0xFF; i++) {
       invalidSequences.add(new byte[] {(byte) i});
     }
+
     for (int i = 0xC2; i <= 0xDF; i++) {
       invalidSequences.add(new byte[] {(byte) i, (byte) 0x00});
       invalidSequences.add(new byte[] {(byte) i, (byte) 0x7F});
-      
+
       invalidSequences.add(new byte[] {(byte) i, (byte) 0xC0});
       invalidSequences.add(new byte[] {(byte) i, (byte) 0xFF});
     }
+
+    invalidSequences.add(new byte[] {(byte) 0xE0, (byte) 0x00});
+    invalidSequences.add(new byte[] {(byte) 0xE0, (byte) 0x9F});
+
+    invalidSequences.add(new byte[] {(byte) 0xE0, (byte) 0xC0});
+    invalidSequences.add(new byte[] {(byte) 0xE0, (byte) 0xFF});
+
+    for (int i = 0xE1; i <= 0xEF; i++) {
+      invalidSequences.add(new byte[] {(byte) i, (byte) 0x00});
+      invalidSequences.add(new byte[] {(byte) i, (byte) 0x7F});
+
+      invalidSequences.add(new byte[] {(byte) i, (byte) 0xC0});
+      invalidSequences.add(new byte[] {(byte) i, (byte) 0xFF});
+    }
+
+    invalidSequences.add(new byte[] {(byte) 0xF0, (byte) 0x00});
+    invalidSequences.add(new byte[] {(byte) 0xF0, (byte) 0x9F});
+
+    invalidSequences.add(new byte[] {(byte) 0xF0, (byte) 0xC0});
+    invalidSequences.add(new byte[] {(byte) 0xF0, (byte) 0xFF});
+
+    invalidSequences.add(new byte[] {(byte) 0xF4, (byte) 0x00});
+    invalidSequences.add(new byte[] {(byte) 0xF4, (byte) 0x7F});
+
+    invalidSequences.add(new byte[] {(byte) 0xF4, (byte) 0x90});
+    invalidSequences.add(new byte[] {(byte) 0xF4, (byte) 0xFF});
+
+    for (int i = 0xE0; i <= 0xEF; i++) {
+      invalidSequences.add(new byte[] {(byte) i, 0, (byte) 0x00});
+      invalidSequences.add(new byte[] {(byte) i, -1, (byte) 0x7F});
+
+      invalidSequences.add(new byte[] {(byte) i, 0, (byte) 0xC0});
+      invalidSequences.add(new byte[] {(byte) i, -1, (byte) 0xFF});
+    }
+
+    for (int i = 0xF0; i <= 0xF4; i++) {
+      invalidSequences.add(new byte[] {(byte) i, 0, (byte) 0x00});
+      invalidSequences.add(new byte[] {(byte) i, -1, (byte) 0x7F});
+
+      invalidSequences.add(new byte[] {(byte) i, 0, (byte) 0xC0});
+      invalidSequences.add(new byte[] {(byte) i, -1, (byte) 0xFF});
+    }
+
+    for (int i = 0xF0; i <= 0xF4; i++) {
+      invalidSequences.add(new byte[] {(byte) i, 0, 0, (byte) 0x00});
+      invalidSequences.add(new byte[] {(byte) i, -1, -1, (byte) 0x7F});
+
+      invalidSequences.add(new byte[] {(byte) i, 0, 0, (byte) 0xC0});
+      invalidSequences.add(new byte[] {(byte) i, -1, -1, (byte) 0xFF});
+    }
+
+    // non-shortest form
+    invalidSequences.add(new byte[] {(byte) 0b11000001, (byte) 0b10000000});
+    invalidSequences.add(new byte[] {(byte) 0b11100000, (byte) 0b10000001, (byte) 0b10000000});
+    invalidSequences.add(new byte[] {(byte) 0b11110000, (byte) 0b10000000, (byte) 0b10000001, (byte) 0b10000000});
+
     return invalidSequences;
   }
 
