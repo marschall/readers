@@ -1,7 +1,6 @@
 package com.github.marschall.readers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 
@@ -23,9 +22,12 @@ class Utf8UtilsTest {
     assertEquals(4, Utf8Utils.getByteLength((byte) 0b11110_000));
     assertEquals(4, Utf8Utils.getByteLength((byte) (0b11111_000 - 1)));
 
-    assertThrows(IOException.class, () -> Utf8Utils.getByteLength((byte) 0b11111_000));
-    assertThrows(IOException.class, () -> Utf8Utils.getByteLength((byte) 128));
-    assertThrows(IOException.class, () -> Utf8Utils.getByteLength((byte) -1));
+    assertEquals(5, Utf8Utils.getByteLength((byte) 0b11111_000));
+    assertEquals(1, Utf8Utils.getByteLength((byte) 128));
+    assertEquals(8, Utf8Utils.getByteLength((byte) -1));
+//    assertThrows(IOException.class, () -> Utf8Utils.getByteLength((byte) 0b11111_000));
+//    assertThrows(IOException.class, () -> Utf8Utils.getByteLength((byte) 128));
+//    assertThrows(IOException.class, () -> Utf8Utils.getByteLength((byte) -1));
   }
 
 }

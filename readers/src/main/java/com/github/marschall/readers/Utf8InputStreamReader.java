@@ -108,7 +108,7 @@ public final class Utf8InputStreamReader extends Reader {
           return REPLACEMENT;
         }
         if (Utf8Utils.isValidThreeByteSequence(c1, c2, 3)) {
-          return ((c1 & 0b000101111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
+          return ((c1 & 0b00001111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
         } else {
           return REPLACEMENT;
         }
@@ -123,7 +123,7 @@ public final class Utf8InputStreamReader extends Reader {
         }
   
         if (Utf8Utils.isValidFourByteSequence(c1, c2, 3, 4)) {
-          return ((c1 & 0b000101111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
+          return ((c1 & 0b00000111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
         } else {
           return REPLACEMENT;
         }
