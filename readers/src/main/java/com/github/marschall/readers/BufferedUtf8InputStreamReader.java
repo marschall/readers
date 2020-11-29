@@ -81,7 +81,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
    * 
    * <p>The caller is responsible for checking {@link #hasPendingLowSurrogate}.
    * 
-   * @return 1 if at least one char is in the buffer,
+   * @return 1 if at least one char is in the buffer or not a full byte is left in the input,
    *         -1 if no longer a full char is available from the buffer
    * @throws IOException if reading fails
    */
@@ -93,29 +93,33 @@ public final class BufferedUtf8InputStreamReader extends Reader {
 
     // buffer is empty
     if (this.capacity == 0) {
+      // contract guarantees at least one byte is read
       int read = this.in.read(this.buffer, 0, this.buffer.length);
       if (read == -1) {
         return -1;
       }
       this.capacity = read;
       this.position = 0;
-      return 1;
+      // we can't abort because on theory not enough bytes are read
     }
 
     int byteLength = Utf8Utils.getByteLength(this.buffer[this.position]);
-    if (byteLength > this.capacity && byteLength <= MAX_BYTE_LENGTH) {
+    while (byteLength > this.capacity && byteLength <= MAX_BYTE_LENGTH) {
       // input is valid
       // not a full character is available
+      
+      // move the buffer to the start if not already done so
       if (this.position > 0) {
         System.arraycopy(this.buffer, this.position, this.buffer, 0, this.capacity);
         this.position = 0;
-        int read = this.in.read(this.buffer, this.capacity, this.buffer.length - this.capacity);
-        if (read == -1) {
-          return -1;
-        }
-        this.capacity += read;
       }
-      return 1;
+      int read = this.in.read(this.buffer, this.capacity, this.buffer.length - this.capacity);
+      if (read == -1) {
+        // if there isn't a buffer char in the buffer
+        // but the stream is at the end return 1 anyways
+        return this.capacity == 0 ? -1 : 1;
+      }
+      this.capacity += read;
     }
     return 1;
   }
@@ -206,6 +210,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
           read += 1;
         } else if (byteLength <= this.capacity + 1) {
           // non-ASCII multi-byte character
+          // enough bytes in the buffer left to decode the whole character
           int codePoint = this.readMultiByteCharacter(b, byteLength);
           if (Character.isBmpCodePoint(codePoint)) {
             // BMP character, single Java char
@@ -303,6 +308,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
           skipped += 1;
         } else if (byteLength <= this.capacity + 1) {
           // non-ASCII multi-byte character
+          // enough bytes in the buffer left to decode the whole character
           int codePoint = this.readMultiByteCharacter(b, byteLength);
           if (Character.isBmpCodePoint(codePoint)) {
             // BMP character, single Java char
@@ -332,6 +338,58 @@ public final class BufferedUtf8InputStreamReader extends Reader {
   }
 
   private int readMultiByteCharacter(byte b1, int byteLength) throws IOException {
+    // https://unicode.org/versions/corrigendum1.html
+    if (byteLength - 1 > this.capacity) {
+      this.position += this.capacity;
+      this.capacity = 0;
+      return REPLACEMENT;
+    }
+    int c1 = Byte.toUnsignedInt(b1);
+    switch (byteLength) {
+    case 2: {
+      int c2 = Byte.toUnsignedInt(this.buffer[this.position]);
+      this.position += 1;
+      this.capacity -= 1;
+      
+      if (Utf8Utils.isValidTwoByteSequence(c1, c2)) {
+        return ((c1 & 0b00011111) << 6) | (c2 & 0b00111111);
+      } else {
+        return REPLACEMENT;
+      }
+    }
+
+    case 3: {
+      int c2 = Byte.toUnsignedInt(this.buffer[this.position]);
+      int c3 = Byte.toUnsignedInt(this.buffer[this.position + 1]);
+      this.position += 2;
+      this.capacity -= 2;
+      
+      if (Utf8Utils.isValidThreeByteSequence(c1, c2, 3)) {
+        return ((c1 & 0b000101111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
+      } else {
+        return REPLACEMENT;
+      }
+
+    }
+
+    case 4: {
+      int c2 = Byte.toUnsignedInt(this.buffer[this.position]);
+      int c3 = Byte.toUnsignedInt(this.buffer[this.position + 1]);
+      int c4 = Byte.toUnsignedInt(this.buffer[this.position + 2]);
+      this.position += 3;
+      this.capacity -= 3;
+      
+      if (Utf8Utils.isValidFourByteSequence(c1, c2, 3, 4)) {
+        return ((c1 & 0b000101111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
+      } else {
+        return REPLACEMENT;
+      }
+
+    }
+
+    }
+    
+    
     int codePoint = b1 & ((1 << (7 - byteLength)) - 1);
     boolean valid = true;
     for (int i = 0; i < (byteLength - 1); i++) {

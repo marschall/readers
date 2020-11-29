@@ -86,60 +86,52 @@ public final class Utf8InputStreamReader extends Reader {
   private int readMultiByteCharacter(int c1, int byteLength) throws IOException {
     // https://unicode.org/versions/corrigendum1.html
     switch (byteLength) {
-    case 2: {
-      int c2 = this.in.read();
-      
-      if (c2 == -1) {
-        return REPLACEMENT;
+      case 2: {
+        int c2 = this.in.read();
+  
+        if (c2 == -1) {
+          return REPLACEMENT;
+        }
+  
+        if (Utf8Utils.isValidTwoByteSequence(c1, c2)) {
+          return ((c1 & 0b00011111) << 6) | (c2 & 0b00111111);
+        } else {
+          return REPLACEMENT;
+        }
       }
-      
-      if ((c1 >= 0xC2 & c1 <= 0xDF) & (c2 >= 0x80 & c2 <= 0xBF)) {
-        return ((c1 & 0b00011111) << 6) | (c2 & 0b00111111);
-      } else {
-        return REPLACEMENT;
+  
+      case 3: {
+        int c2 = this.in.read();
+        int c3 = this.in.read();
+  
+        if (c2 == -1 | c3 == -1) {
+          return REPLACEMENT;
+        }
+        if (Utf8Utils.isValidThreeByteSequence(c1, c2, 3)) {
+          return ((c1 & 0b000101111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
+        } else {
+          return REPLACEMENT;
+        }
       }
-    }
-
-
-    case 3: {
-      int c2 = this.in.read();
-      int c3 = this.in.read();
-      
-      if (c2 == -1 | c3 == -1) {
-        return REPLACEMENT;
+  
+      case 4: {
+        int c2 = this.in.read();
+        int c3 = this.in.read();
+        int c4 = this.in.read();
+        if (c2 == -1 | c3 == -1 | c4 == -1) {
+          return REPLACEMENT;
+        }
+  
+        if (Utf8Utils.isValidFourByteSequence(c1, c2, 3, 4)) {
+          return ((c1 & 0b000101111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
+        } else {
+          return REPLACEMENT;
+        }
+  
       }
-      if (((c1 == 0xE0 & c2 >= 0xA0 & c2 <= 0xBF)
-          | (c1 >= 0xE1 & c1 <= 0xEF & c2 >= 0x80 & c2 <= 0xBF))
-          & (c3 >= 0x80 | c3 <= 0xBF)) {
-        return ((c1 & 0b000101111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
-      } else {
+  
+      default:
         return REPLACEMENT;
-      }
-
-    }
-
-    case 4: {
-      int c2 = this.in.read();
-      int c3 = this.in.read();
-      int c4 = this.in.read();
-      if (c2 == -1 | c3 == -1 | c4 == -1) {
-        return REPLACEMENT;
-      }
-      
-      if (((c1 == 0xF0 & c2 >= 0x90 & c2 <= 0xBF)
-          | (c1 >= 0xF1 & c1 <= 0xF3 & c2 >= 0x80 & c2 <= 0xBF)
-          | (c1 == 0xF4 & c2 >= 0x80 & c2 <= 0x8F))
-          & (c3 >= 0x80 | c3 <= 0xBF)
-          & (c4 >= 0x80 | c4 <= 0xBF)) {
-        return ((c1 & 0b000101111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
-      } else {
-        return REPLACEMENT;
-      }
-
-    }
-
-    default:
-      return REPLACEMENT;
     }
   }
 
