@@ -13,7 +13,4 @@ The implementations are currently very biased towards ASCII input.
 The implementations fully support non-BMP code points that result in two Java `char` (high and low surrogate).
 The implementations are currently not thread-safe.
 
-Caveats
-=======
-
-* no checks for [non-shortest form](https://unicode.org/versions/corrigendum1.html)
+The implementations perform full validation against table 3.1B from [Corrigendum #1: UTF-8 Shortest Form](https://unicode.org/versions/corrigendum1.html) to catch non-shortest form.
