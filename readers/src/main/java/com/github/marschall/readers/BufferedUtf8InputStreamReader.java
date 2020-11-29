@@ -364,7 +364,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
       this.position += 2;
       this.capacity -= 2;
       
-      if (Utf8Utils.isValidThreeByteSequence(c1, c2, 3)) {
+      if (Utf8Utils.isValidThreeByteSequence(c1, c2, c3)) {
         return ((c1 & 0b00001111) << 12) | ((c2 & 0b00111111) << 6) | (c3 & 0b00111111);
       } else {
         return REPLACEMENT;
@@ -379,7 +379,7 @@ public final class BufferedUtf8InputStreamReader extends Reader {
       this.position += 3;
       this.capacity -= 3;
       
-      if (Utf8Utils.isValidFourByteSequence(c1, c2, 3, 4)) {
+      if (Utf8Utils.isValidFourByteSequence(c1, c2, c3, c4)) {
         return ((c1 & 0b00000111) << 18) | ((c2 & 0b00111111) << 12) | ((c3 & 0b00111111) << 6) | (c4 & 0b00111111);
       } else {
         return REPLACEMENT;
